@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   ScrollView,
   useColorScheme,
+  TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NOTE_TEMPLATES } from '../constants/templates';
@@ -18,6 +21,7 @@ interface TemplateModalProps {
   onClose: () => void;
   onSelectTemplate: (template: NoteTemplate) => void;
   onSelectBlank: () => void;
+  onImportFromUrl?: (title: string, content: string) => void;
 }
 
 export const TemplateModal: React.FC<TemplateModalProps> = ({
@@ -25,8 +29,53 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
   onClose,
   onSelectTemplate,
   onSelectBlank,
+  onImportFromUrl,
 }) => {
   const isDark = useColorScheme() === 'dark';
+  const [showImportUrlInput, setShowImportUrlInput] = useState<boolean>(false);
+  const [importUrl, setImportUrl] = useState<string>('');
+  const [isFetchingUrl, setIsFetchingUrl] = useState<boolean>(false);
+
+  const handleFetchMarkdownUrl = async () => {
+    if (!importUrl.trim()) {
+      Alert.alert('Peringatan', 'Masukkan URL berkas Markdown (RAW .md URL).');
+      return;
+    }
+
+    try {
+      setIsFetchingUrl(true);
+      const res = await fetch(importUrl.trim());
+      if (!res.ok) {
+        throw new Error(`HTTP Error ${res.status}`);
+      }
+      const text = await res.text();
+      setIsFetchingUrl(false);
+
+      // Extract title from URL filename or first heading
+      let derivedTitle = 'Hasil Impor Internet 🌐';
+      const headingMatch = text.match(/^#\s+(.+)$/m);
+      if (headingMatch && headingMatch[1]) {
+        derivedTitle = headingMatch[1].trim();
+      } else {
+        const urlParts = importUrl.trim().split('/');
+        const lastPart = urlParts[urlParts.length - 1];
+        if (lastPart && lastPart.endsWith('.md')) {
+          derivedTitle = lastPart.replace('.md', '');
+        }
+      }
+
+      if (onImportFromUrl) {
+        onImportFromUrl(derivedTitle, text);
+      }
+      setImportUrl('');
+      setShowImportUrlInput(false);
+      onClose();
+    } catch (e: any) {
+      setIsFetchingUrl(false);
+      console.error('Fetch markdown failed', e);
+      Alert.alert('Gagal Mengimpor 🚫', `Gagal mengambil berkas Markdown dari URL internet: ${e.message || e}`);
+    }
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -73,6 +122,57 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
                 </Text>
               </View>
             </TouchableOpacity>
+
+            {/* Import from Internet URL Option */}
+            <TouchableOpacity
+              style={[
+                styles.card,
+                { backgroundColor: isDark ? '#1E293B' : '#ECFDF5', borderColor: '#10B981' },
+              ]}
+              onPress={() => setShowImportUrlInput(!showImportUrlInput)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.iconContainer, { backgroundColor: '#D1FAE5' }]}>
+                <Ionicons name="globe-outline" size={24} color="#059669" />
+              </View>
+              <View style={styles.cardInfo}>
+                <Text style={[styles.cardTitle, { color: isDark ? '#F8FAFC' : '#0F172A' }]}>
+                  Impor dari Internet 🌐
+                </Text>
+                <Text style={[styles.cardDesc, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+                  Ambil berkas Markdown dari URL publik (GitHub RAW, Gist, web)
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {showImportUrlInput && (
+              <View style={[styles.importBox, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC' }]}>
+                <TextInput
+                  style={[styles.importInput, { color: isDark ? '#F8FAFC' : '#0F172A', borderColor: isDark ? '#334155' : '#CBD5E1' }]}
+                  placeholder="https://raw.githubusercontent.com/.../README.md"
+                  placeholderTextColor={isDark ? '#64748B' : '#94A3B8'}
+                  value={importUrl}
+                  onChangeText={setImportUrl}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+                <TouchableOpacity
+                  style={styles.importBtn}
+                  onPress={handleFetchMarkdownUrl}
+                  disabled={isFetchingUrl}
+                  activeOpacity={0.8}
+                >
+                  {isFetchingUrl ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="download-outline" size={16} color="#FFFFFF" />
+                      <Text style={styles.importBtnText}>Unduh & Buat</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
 
             <Text style={[styles.sectionTitle, { color: isDark ? '#CBD5E1' : '#475569' }]}>
               TEMPLATE POPULER
@@ -208,5 +308,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     lineHeight: 16,
+  },
+  importBox: {
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  importInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 12,
+  },
+  importBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#059669',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  importBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 13,
   },
 });

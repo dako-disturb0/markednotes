@@ -56,6 +56,18 @@ export default function HomeScreen() {
     router.push(`/note/${newNote.id}`);
   };
 
+  const handleCreateFromUrl = (importedTitle: string, importedContent: string) => {
+    const newNote = addNote({
+      title: importedTitle,
+      content: importedContent,
+      category: 'Study',
+      tags: ['Imported', 'Markdown'],
+      isPinned: false,
+      isFavorite: false,
+    });
+    router.push(`/note/${newNote.id}`);
+  };
+
   const handleCreateBlank = () => {
     const newNote = addNote({
       title: '',
@@ -204,6 +216,7 @@ export default function HomeScreen() {
         onClose={() => setIsTemplateModalOpen(false)}
         onSelectTemplate={handleCreateFromTemplate}
         onSelectBlank={handleCreateBlank}
+        onImportFromUrl={handleCreateFromUrl}
       />
 
       {/* Sort Options Modal */}

@@ -7,9 +7,12 @@ import {
   TouchableOpacity,
   useColorScheme,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { SecurityService } from '../services/security';
 
 interface NoteStatsModalProps {
@@ -40,12 +43,50 @@ export const NoteStatsModal: React.FC<NoteStatsModalProps> = ({
   const charCount = content.length;
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
   const lineCount = content ? content.split('\n').length : 0;
-  const readingTime = Math.ceil(wordCount / 200); // Avg 200 WPM
+  const readingTime = Math.ceil(wordCount / 200);
 
   const handleCopyMarkdown = async () => {
     const fullText = `# ${title}\n\n${content}`;
     await Clipboard.setStringAsync(fullText);
     Alert.alert('Sukses 📋', 'Konten Markdown telah disalin ke clipboard!');
+  };
+
+  const handleShareMdFile = async () => {
+    try {
+      const fileName = (title.trim() ? title.trim().replace(/[^a-zA-Z0-9_-]/g, '_') : 'Catatan') + '.md';
+      const cacheDir = (FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory || '';
+      const fileUri = cacheDir + fileName;
+      const fullText = `# ${title}\n\n${content}`;
+
+      if (Platform.OS === 'web') {
+        // Web Download link
+        const element = document.createElement('a');
+        const file = new Blob([fullText], { type: 'text/markdown' });
+        element.href = URL.createObjectURL(file);
+        element.download = fileName;
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+        Alert.alert('Berhasil 📥', `File ${fileName} telah diunduh!`);
+        return;
+      }
+
+      await FileSystem.writeAsStringAsync(fileUri, fullText);
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/markdown',
+          dialogTitle: `Bagikan Berkas ${fileName}`,
+          UTI: 'public.plain-text',
+        });
+      } else {
+        Alert.alert('File Tersimpan 📁', `Berkas disimpan di: ${fileUri}`);
+      }
+    } catch (e) {
+      console.error('Share .md error', e);
+      Alert.alert('Gagal', 'Gagal membagikan berkas .md');
+    }
   };
 
   const handleCopySecurityHash = async () => {
@@ -60,7 +101,7 @@ export const NoteStatsModal: React.FC<NoteStatsModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.modalTitle, { color: isDark ? '#F8FAFC' : '#0F172A' }]}>
-              Statistik & Keamanan 📊
+              Statistik & Ekspor 📊
             </Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={22} color={isDark ? '#94A3B8' : '#64748B'} />
@@ -123,14 +164,25 @@ export const NoteStatsModal: React.FC<NoteStatsModalProps> = ({
           </View>
 
           {/* Action Buttons */}
-          <TouchableOpacity
-            style={[styles.btn, styles.primaryBtn]}
-            onPress={handleCopyMarkdown}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="copy-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.primaryBtnText}>Salin Markdown Mentah</Text>
-          </TouchableOpacity>
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.btn, styles.shareBtn]}
+              onPress={handleShareMdFile}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.btnText}>Bagikan Berkas .md (Android)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.btn, styles.primaryBtn]}
+              onPress={handleCopyMarkdown}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="copy-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.btnText}>Salin Teks Markdown</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -208,6 +260,9 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
   },
+  actionRow: {
+    gap: 10,
+  },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -216,12 +271,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
   },
+  shareBtn: {
+    backgroundColor: '#059669',
+  },
   primaryBtn: {
     backgroundColor: '#2563EB',
   },
-  primaryBtnText: {
+  btnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
 });
