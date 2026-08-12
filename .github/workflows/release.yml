@@ -20,6 +20,9 @@ on:
           - 'web'
           - 'all'
 
+permissions:
+  contents: write
+
 jobs:
   build-release:
     name: Build & Publish Release
