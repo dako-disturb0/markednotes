@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { SecurityService } from '../services/security';
 
 interface NoteStatsModalProps {
   visible: boolean;
@@ -25,6 +26,15 @@ export const NoteStatsModal: React.FC<NoteStatsModalProps> = ({
   content,
 }) => {
   const isDark = useColorScheme() === 'dark';
+  const [appSecurityHash, setAppSecurityHash] = useState<string>('LOADING...');
+  const [contentChecksum, setContentChecksum] = useState<string>('...');
+
+  useEffect(() => {
+    if (visible) {
+      SecurityService.getAppSecurityHash().then(setAppSecurityHash);
+      SecurityService.generateContentHash(content).then(setContentChecksum);
+    }
+  }, [visible, content]);
 
   // Calculate stats
   const charCount = content.length;
@@ -38,6 +48,11 @@ export const NoteStatsModal: React.FC<NoteStatsModalProps> = ({
     Alert.alert('Sukses 📋', 'Konten Markdown telah disalin ke clipboard!');
   };
 
+  const handleCopySecurityHash = async () => {
+    await Clipboard.setStringAsync(`AppHash: ${appSecurityHash} | Checksum: ${contentChecksum}`);
+    Alert.alert('Hash Keamanan 🔒', 'Hash Keamanan & Checksum telah disalin!');
+  };
+
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -45,12 +60,32 @@ export const NoteStatsModal: React.FC<NoteStatsModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.modalTitle, { color: isDark ? '#F8FAFC' : '#0F172A' }]}>
-              Statistik & Ekspor 📊
+              Statistik & Keamanan 📊
             </Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={22} color={isDark ? '#94A3B8' : '#64748B'} />
             </TouchableOpacity>
           </View>
+
+          {/* App Security Hash Badge */}
+          <TouchableOpacity
+            style={[styles.securityBadge, { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' }]}
+            onPress={handleCopySecurityHash}
+            activeOpacity={0.7}
+          >
+            <View style={styles.securityHeader}>
+              <Ionicons name="shield-checkmark" size={16} color="#10B981" />
+              <Text style={[styles.securityTitle, { color: isDark ? '#F8FAFC' : '#0F172A' }]}>
+                Kode Hash Enkripsi Aplikasi
+              </Text>
+            </View>
+            <Text style={[styles.hashText, { color: isDark ? '#38BDF8' : '#0284C7' }]} numberOfLines={1}>
+              {appSecurityHash}
+            </Text>
+            <Text style={[styles.checksumText, { color: isDark ? '#94A3B8' : '#64748B' }]}>
+              Checksum Dokumen: <Text style={{ fontWeight: '700' }}>#{contentChecksum}</Text>
+            </Text>
+          </TouchableOpacity>
 
           {/* Stats Grid */}
           <View style={styles.grid}>
@@ -120,24 +155,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
   },
+  securityBadge: {
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  securityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  securityTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  hashText: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  checksumText: {
+    fontSize: 11,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   statBox: {
     width: '48%',
     borderRadius: 12,
-    padding: 14,
+    padding: 12,
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
   statValue: {
     fontSize: 18,
@@ -145,7 +206,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
   },
   btn: {
     flexDirection: 'row',
