@@ -38,6 +38,12 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      - name: ☕ Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: 📦 Install Dependencies
         run: npm ci || npm install
 
@@ -48,6 +54,7 @@ jobs:
           echo "APP_SECURITY_HASH=$HASH" > release_assets/APP_SECURITY_HASH.txt
           echo "RELEASE_VERSION=${{ github.event.inputs.version }}" >> release_assets/APP_SECURITY_HASH.txt
           echo "BUILD_TIMESTAMP=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> release_assets/APP_SECURITY_HASH.txt
+          echo "MIN_ANDROID_SDK=24 (Android 7.0+)" >> release_assets/APP_SECURITY_HASH.txt
           echo "App Security Hash: $HASH"
 
       - name: 🏗️ Build Production Bundle (Web)
@@ -65,7 +72,8 @@ jobs:
             ${{ github.event.inputs.release_notes }}
 
             ---
-            ### 🔒 App Security & Encryption Verification
+            ### 🤖 Compatibility & Security
+            - **Android Minimum**: Android 7.0+ (`minSdkVersion 24`)
             - **App Security Hash**: `markednotes-app-sha256`
             - Checksum verification file included: `APP_SECURITY_HASH.txt`
           files: |

@@ -1,5 +1,39 @@
 {
-  "plugins": [
-    "expo-sharing"
-  ]
+  "expo": {
+    "name": "Marked Notes",
+    "slug": "markednotes",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "markednotes",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.markednotes.app",
+      "versionCode": 1,
+      "minSdkVersion": 24,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "INTERNET"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Aplikasi memerlukan akses ke galeri foto untuk menyisipkan gambar ke dalam catatan Markdown."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
 }
